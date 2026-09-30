@@ -7,6 +7,7 @@
 
 纯前端项目，**无需安装任何依赖、无需后端**。
 **点击链接直接在线试玩：** https://bnu-engpsy-fall26.github.io/LIUYUKE202311130105/
+
 方式一（推荐）：直接双击 `index.html`，在浏览器（Chrome / Edge / Firefox 等现代浏览器）中打开即可游玩。
 
 方式二（可选本地服务器）：
