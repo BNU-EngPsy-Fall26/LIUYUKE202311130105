@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>自动驾驶目标识别 · 信号检测论(SDT)实验</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ======================= 开始界面 ======================= -->
+<section id="screen-start" class="screen">
+
+  <div class="hero">
+    <div class="badge">工程心理学 · 信号检测论 (Signal Detection Theory)</div>
+    <h1>自动驾驶目标识别</h1>
+    <p class="subtitle">
+      你是一台自动驾驶汽车的<b>感知系统</b>。每一帧画面只短暂呈现，你要判断前方道路
+      <b>是否存在行人 / 障碍物</b>，并据此选择「刹车」或「继续行驶」。
+    </p>
+  </div>
+
+  <!-- 场景与参数定义 -->
+  <div class="panel">
+    <h2>信号 vs 噪音 · 四种判断结果</h2>
+    <p class="panel-note">
+      在本场景中，<b class="hl-signal">信号 S</b> = 前方道路<b>确实出现</b>行人 / 障碍物（应刹车）；
+      <b class="hl-noise">噪音 N</b> = 前方道路<b>空旷无异常</b>（应继续行驶）。
+    </p>
+    <div class="matrix">
+      <div class="matrix-corner"></div>
+      <div class="matrix-head">报告「刹车」<br><small>（判断：有障碍）</small></div>
+      <div class="matrix-head">报告「继续」<br><small>（判断：无障碍）</small></div>
+
+      <div class="matrix-head row">实际有障碍<br><small>（信号 S）</small></div>
+      <div class="matrix-cell cell-hit">击中 <b>Hit (H)</b><small>正确刹车 ✓</small></div>
+      <div class="matrix-cell cell-miss">漏报 <b>Miss (M)</b><small>未刹车 ✗ 危险！</small></div>
+
+      <div class="matrix-head row">实际无障碍<br><small>（噪音 N）</small></div>
+      <div class="matrix-cell cell-fa">虚警 <b>False Alarm (FA)</b><small>误刹车 ✗</small></div>
+      <div class="matrix-cell cell-cr">正确拒斥 <b>CR</b><small>正确继续 ✓</small></div>
+    </div>
+  </div>
+
+  <!-- 实验参数 -->
+  <div class="panel">
+    <h2>实验参数</h2>
+    <div class="param-grid">
+      <div class="param">
+        <div class="param-head"><label>难度 <b>d′</b></label><span class="param-val" id="dprime-val">1.5</span></div>
+        <input type="range" id="dprime-input" min="0.5" max="3" step="0.1" value="1.5" />
+        <small>信号与噪音的区分度：d′ 越大，障碍物越清晰、越容易被发现</small>
+      </div>
+      <div class="param">
+        <div class="param-head"><label>先验概率 <b>P(S)</b></label><span class="param-val" id="prior-val">0.30</span></div>
+        <input type="range" id="prior-input" min="0.1" max="0.6" step="0.05" value="0.30" />
+        <small>本局中「出现障碍物」的试次占比</small>
+      </div>
+      <div class="param">
+        <div class="param-head"><label>每局试次 <b>N</b></label><span class="param-val" id="trials-val">24</span></div>
+        <input type="range" id="trials-input" min="20" max="60" step="1" value="24" />
+        <small>每次实验的试次数（至少 20 次）</small>
+      </div>
+      <div class="param">
+        <div class="param-head"><label>刺激呈现时长</label><span class="param-val" id="stimtime-val">1500 ms</span></div>
+        <input type="range" id="stimtime-input" min="500" max="3000" step="100" value="1500" />
+        <small>画面只显示这段时间，之后被隐藏，需凭记忆判断</small>
+      </div>
+    </div>
+  </div>
+
+  <button id="btn-start" class="btn-primary">开始实验</button>
+  <p class="hint">快捷键：<b>J</b> / ← = 继续行驶 · <b>K</b> / → = 刹车</p>
+</section>
+
+<!-- ======================= 游戏界面 ======================= -->
+<section id="screen-game" class="screen hidden">
+
+  <div class="hud-top">
+    <div class="hud-left">
+      <span class="hud-chip chip-accent">● AUTOPILOT VISION</span>
+      <span class="hud-chip" id="hud-trial">试次 1 / 24</span>
+    </div>
+    <div class="hud-right">
+      <span class="hud-chip">d′ = <b id="hud-dprime">1.5</b></span>
+      <span class="hud-chip">P(S) = <b id="hud-prior">0.30</b></span>
+      <span class="hud-chip" id="hud-score">正确 0</span>
+    </div>
+  </div>
+
+  <div class="road-wrap">
+    <canvas id="road-canvas"></canvas>
+    <div id="stim-timer"><div id="stim-timer-fill" class="fill"></div></div>
+    <div id="overlay" class="overlay"></div>
+  </div>
+
+  <div class="hud-bottom">
+    <button id="btn-no" class="resp-btn btn-no">继续行驶<small>无障碍 · 不刹车</small><span class="key">J</span></button>
+    <button id="btn-yes" class="resp-btn btn-yes">刹车！<small>有障碍 · 立即刹车</small><span class="key">K</span></button>
+  </div>
+  <p class="hint center">提示：刺激隐藏后请凭刚才的记忆作答，超时 3 秒自动记为「继续行驶」</p>
+</section>
+
+<!-- ======================= 结果界面 ======================= -->
+<section id="screen-result" class="screen hidden">
+
+  <div class="hero small">
+    <h1>实验结果</h1>
+    <p class="subtitle" id="result-summary">—</p>
+    <p class="subtitle" id="dp-compare"></p>
+  </div>
+
+  <div class="result-grid">
+    <!-- 四种结果统计（混淆矩阵） -->
+    <div class="panel">
+      <h2>四种结果统计</h2>
+      <div class="confusion">
+        <div class="conf-corner"></div>
+        <div class="conf-head">报告「刹车」</div>
+        <div class="conf-head">报告「继续」</div>
+        <div class="conf-head row">实际有障碍</div>
+        <div class="conf-cell cell-hit"><span class="big" id="cnt-H">0</span><b>击中 Hit</b><small>正确刹车</small></div>
+        <div class="conf-cell cell-miss"><span class="big" id="cnt-M">0</span><b>漏报 Miss</b><small>危险！</small></div>
+        <div class="conf-head row">实际无障碍</div>
+        <div class="conf-cell cell-fa"><span class="big" id="cnt-FA">0</span><b>虚警 FA</b><small>误刹车</small></div>
+        <div class="conf-cell cell-cr"><span class="big" id="cnt-CR">0</span><b>正确拒斥 CR</b><small>正确继续</small></div>
+      </div>
+    </div>
+
+    <!-- SDT 指标 -->
+    <div class="panel">
+      <h2>信号检测论指标</h2>
+      <div class="metrics">
+        <div class="metric"><label>P(Hit) 击中率</label><b id="m-pHit">—</b></div>
+        <div class="metric"><label>P(FA) 虚警率</label><b id="m-pFA">—</b></div>
+        <div class="metric hl"><label>辨别力 d′</label><b id="m-dp">—</b></div>
+        <div class="metric hl"><label>判断标准 c</label><b id="m-c">—</b></div>
+        <div class="metric"><label>准确率</label><b id="m-acc">—</b></div>
+        <div class="metric"><label>反应偏向 β</label><b id="m-beta">—</b></div>
+      </div>
+      <p class="panel-note" id="bias-text"></p>
+      <p class="footnote">注：d′ 与 c 采用 log-linear 校正（每格计数 +0.5）计算，避免击中/虚警为 0 或 1 时 z 值无穷。</p>
+    </div>
+  </div>
+
+  <!-- 交互式分布可视化 -->
+  <div class="panel">
+    <h2>概念可视化 · 信号与噪音分布</h2>
+    <p class="panel-note">拖动下方 <b>c</b> 滑块，观察判断标准移动时「击中 / 漏报 / 虚警 / 正确拒斥」四块面积如何变化。</p>
+    <canvas id="dist-canvas"></canvas>
+    <div class="c-row">
+      <label>判断标准 <b>c</b> = <span id="c-val">0.00</span></label>
+      <input type="range" id="c-slider" min="-3" max="3" step="0.01" value="0" />
+    </div>
+    <div class="c-row">
+      <label>辨别力 <b>d′</b> = <span id="dp-viz-val">1.50</span></label>
+      <input type="range" id="dp-slider" min="0" max="3.5" step="0.1" value="1.5" />
+    </div>
+    <p class="hint" id="c-hint">c 右移 = 更保守（更少说「有障碍」）；c 左移 = 更激进（更多说「有障碍」）</p>
+    <div class="viz-legend">
+      <span class="lg noise"></span>噪音分布 N(0,1)（无障碍）
+      <span class="lg signal"></span>信号分布 N(d′,1)（有障碍）
+      <span class="lg crit"></span>判断标准 c
+      <span class="lg hit"></span>击中
+      <span class="lg miss"></span>漏报
+      <span class="lg fa"></span>虚警
+      <span class="lg cr"></span>正确拒斥
+    </div>
+  </div>
+
+  <!-- ROC 曲线 -->
+  <div class="panel">
+    <h2>ROC 曲线（接受者操作特征）</h2>
+    <p class="panel-note">曲线为该 d′ 下的理论 ROC；红点为本局实测操作点；青点随 c 滑块在曲线上移动。</p>
+    <div class="roc-row">
+      <canvas id="roc-canvas"></canvas>
+      <div class="roc-side">
+        <div class="viz-legend vertical">
+          <span class="lg roc"></span>理论 ROC 曲线
+          <span class="lg chance"></span>随机水平（对角线）
+          <span class="lg obs"></span>本局实测操作点
+          <span class="lg cur"></span>当前 c 对应点
+        </div>
+        <p class="panel-note">ROC 曲线越向左上角凸起，说明辨别力 d′ 越高。</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 逐次回顾 -->
+  <div class="panel">
+    <h2>逐次试次回顾</h2>
+    <div id="trial-strip" class="trial-strip"></div>
+    <div class="viz-legend">
+      <span class="lg hit"></span>击中
+      <span class="lg miss"></span>漏报
+      <span class="lg fa"></span>虚警
+      <span class="lg cr"></span>正确拒斥
+    </div>
+  </div>
+
+  <!-- 多局对比 / 排行榜 -->
+  <div class="panel">
+    <h2>多局数据对比 · 排行榜</h2>
+    <div class="history-row">
+      <div class="history-table-wrap">
+        <p id="history-empty" class="panel-note">暂无历史记录，完成第一局后会自动保存到本地。</p>
+        <table id="history-table" class="history-table" style="display:none">
+          <thead>
+            <tr>
+              <th>#</th><th>时间</th><th>设定 d′</th><th>P(S)</th><th>试次</th>
+              <th>H/M/FA/CR</th><th>实测 d′</th><th>c</th><th>准确率</th>
+            </tr>
+          </thead>
+          <tbody id="history-tbody"></tbody>
+        </table>
+      </div>
+      <div class="leaderboard-wrap">
+        <h3>灵敏度排行（按实测 d′ 降序）</h3>
+        <div id="leaderboard" class="leaderboard"></div>
+        <button id="btn-clear-history" class="btn-secondary">清空历史记录</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <button id="btn-again" class="btn-primary">再来一局</button>
+    <button id="btn-home" class="btn-secondary">返回首页</button>
+  </div>
+</section>
+
+<script src="script.js"></script>
+</body>
+</html>
