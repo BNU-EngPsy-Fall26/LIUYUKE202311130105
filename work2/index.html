@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>注意实验室 · Attention Lab</title>
+<link rel="stylesheet" href="css/base.css?v=20261110" />
+<link rel="stylesheet" href="css/experiments.css?v=20261110" />
+</head>
+<body>
+<div class="app" id="app">
+
+  <!-- ========== 顶部导航 ========== -->
+  <header class="topbar" id="topbar">
+    <div class="brand" id="brandHome" role="button" tabindex="0">
+      <div class="brand-mark">AL</div>
+      <div class="brand-text">
+        <div class="brand-title">注意实验室</div>
+        <div class="brand-sub">Engineering Psychology · Attention Lab</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="pid-chip" id="pidChip" hidden>被试 <b id="pidChipValue">—</b></span>
+      <button class="btn btn-ghost btn-sm" id="btnChangePid" hidden>更换编号</button>
+      <button class="btn btn-ghost btn-sm" id="btnHome" hidden>首页</button>
+      <button class="btn btn-ghost btn-sm" id="btnResults">结果总览</button>
+    </div>
+  </header>
+
+  <main class="viewport" id="viewport">
+
+    <!-- ========== 首页 ========== -->
+    <section class="screen" data-screen="home">
+      <div class="hero">
+        <div class="hero-kicker">工程心理学 · 作业二 · 复现 + 改进</div>
+        <h1>注意<span>实验室</span></h1>
+        <p class="hero-sub">
+          三个经典注意实验的可交互复现，每个实验都加入一个全新的改进条件。
+          所有反应时由 <code>performance.now()</code> 计时，数据仅以匿名编号保存。
+        </p>
+        <div class="hero-actions">
+          <button class="btn btn-primary" id="btnStartFirst">开始第一个实验</button>
+          <button class="btn btn-ghost" id="btnHomeResults">查看结果总览</button>
+          <button class="btn btn-ghost" id="btnHomeExport">导出 CSV</button>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h2>实验列表</h2>
+        <span class="section-sub">建议按顺序完成，全部约 30 分钟</span>
+      </div>
+      <div class="exp-grid" id="expGrid"></div>
+
+      <div class="notice" id="apiNotice" hidden></div>
+
+      <footer class="site-foot">
+        <span>数据上传至课程注意实验室收数接口；未配置项目码时自动改用 CSV 导出。</span>
+        <span>仅记录匿名编号与按键反应，不采集姓名、学号或影像。</span>
+      </footer>
+    </section>
+
+    <!-- ========== 知情同意 ========== -->
+    <section class="screen" data-screen="consent">
+      <div class="panel narrow">
+        <div class="step-tag">Step 1 / 3 · 知情同意</div>
+        <h2>参与前请阅读</h2>
+        <ul class="consent-list">
+          <li><b>研究目的</b>：复现注意瞬脱、负启动与比例判断三个经典效应，并检验改进条件是否有效。</li>
+          <li><b>数据内容</b>：只记录你的匿名编号、按键/滑块反应与毫秒级反应时；不收集姓名、学号、IP 与摄像头影像。</li>
+          <li><b>数据用途</b>：仅用于本课程作业的汇总分析，可能以群体平均的形式呈现。</li>
+          <li><b>自愿参与</b>：可随时按 <kbd>Esc</kbd> 退出，退出后本次数据不会保存。</li>
+          <li><b>视觉提示</b>：实验1 会出现 200ms 的黄色闪烁预警，如对闪烁敏感请勿参与。</li>
+          <li><b>时长</b>：单个实验约 8–15 分钟，三个实验全部完成约 30 分钟，中途可以休息。</li>
+        </ul>
+        <label class="check">
+          <input type="checkbox" id="consentCheck" />
+          <span>我已阅读以上说明，理解并同意参与本实验。</span>
+        </label>
+        <div class="panel-actions">
+          <button class="btn btn-ghost" id="btnConsentBack">返回首页</button>
+          <button class="btn btn-primary" id="btnConsentNext" disabled>同意并继续</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 被试编号 ========== -->
+    <section class="screen" data-screen="identity">
+      <div class="panel narrow">
+        <div class="step-tag">Step 2 / 3 · 匿名编号</div>
+        <h2>输入被试编号</h2>
+        <p class="panel-lead">
+          请使用 <b>2–12 位字母或数字</b> 的匿名编号（例如 <code>P01</code>）。
+          编号是数据的唯一标识，请记录并记住它，不要填写姓名、学号或手机号。
+        </p>
+        <input class="input" id="pidInput" maxlength="12" placeholder="例如 P01" autocomplete="off" spellcheck="false" />
+        <p class="hint" id="pidHint"></p>
+        <div class="panel-actions">
+          <button class="btn btn-ghost" id="btnPidBack">上一步</button>
+          <button class="btn btn-primary" id="btnPidNext">进入实验</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== 实验说明 ========== -->
+    <section class="screen" data-screen="brief">
+      <div id="briefHost"></div>
+    </section>
+
+    <!-- ========== 实验运行 ========== -->
+    <section class="screen" data-screen="run">
+      <div id="runHost"></div>
+    </section>
+
+    <!-- ========== 结果总览 ========== -->
+    <section class="screen" data-screen="results">
+      <div class="page-head">
+        <div>
+          <h2>结果总览</h2>
+          <p class="page-sub" id="resultSub">当前被试的数据</p>
+        </div>
+        <div class="page-actions">
+          <button class="btn btn-ghost btn-sm" id="btnFetchGroup">从平台拉取汇总</button>
+          <button class="btn btn-ghost btn-sm" id="btnImport">导入他人 CSV 汇总</button>
+          <button class="btn btn-ghost btn-sm" id="btnClearImport" hidden>恢复我的数据</button>
+          <input type="file" id="csvFile" accept=".csv,text/csv" hidden />
+          <button class="btn btn-primary btn-sm" id="btnExportAll">导出我的数据</button>
+        </div>
+      </div>
+      <div class="tabs" id="resultTabs">
+        <button class="tab active" data-tab="ab">实验1 · 驾驶注意瞬脱</button>
+        <button class="tab" data-tab="np">实验2 · 座舱负启动</button>
+        <button class="tab" data-tab="cm">实验3 · 比例判断</button>
+      </div>
+      <div id="resultBody"></div>
+    </section>
+
+    <!-- ========== 结束页 ========== -->
+    <section class="screen" data-screen="done">
+      <div class="panel narrow done-panel" id="donePanel"></div>
+    </section>
+
+  </main>
+</div>
+
+<!-- 通用提示条 -->
+<div class="toast" id="toast" hidden></div>
+
+<!-- 通用确认框 -->
+<div class="modal-backdrop" id="modal" hidden>
+  <div class="modal">
+    <h3 id="modalTitle">确认</h3>
+    <p id="modalBody"></p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="modalCancel">取消</button>
+      <button class="btn btn-primary" id="modalOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/config.js?v=20261110"></script>
+<script src="js/core.js?v=20261110"></script>
+<script src="js/charts.js?v=20261110"></script>
+<script src="js/exp-ab.js?v=20261110"></script>
+<script src="js/exp-np.js?v=20261110"></script>
+<script src="js/exp-cm.js?v=20261110"></script>
+<script src="js/results.js?v=20261110"></script>
+<script src="js/app.js?v=20261110"></script>
+</body>
+</html>
